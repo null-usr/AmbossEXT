@@ -1,0 +1,36 @@
+{
+	"name":"AMBOSS SI Estimator", 
+	"description": "Extension for AMBOSS to give a rough estimate for conversion of reference measurements in tables to SI units",
+	"author": "Neil Clarke",
+	"version": "0.1.0",
+	"manifest_version": 3,
+	"default_icon": {
+		"16":"/images/logox16.png",
+		"32":"/images/logox32.png",
+		"48":"/images/logox48.png",
+		"128":"/images/logox128.png"
+	},
+	"background":{
+		"service_worker": ["./scripts/background.js"]
+	},
+	"options_page": "./layouts/options.html",
+	"content_scripts":[
+		{
+			"matches": ["https://next.amboss.com/*"],
+			"js":["./scripts/content.js"],
+			"run_at": "document_end"
+		}
+	],
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "Unit Conversion"
+	},
+	"permissions":[
+		"tabs",
+		"https://next.amboss.com/*",
+		"storage"
+	],
+	"web_accessible_resources": [
+		"/data/lab_table.json"
+	]
+}
