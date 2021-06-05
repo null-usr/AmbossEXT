@@ -67,7 +67,7 @@ function RU_to_SI_Parser(data_table, keys, input){
 	}
 
 	//add new unit afterwards
-	output += data_table[key][1];
+	output += " " + data_table[key][1];
 
 	return output;
 }
