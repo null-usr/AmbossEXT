@@ -3,8 +3,16 @@ const url = chrome.runtime.getURL('/data/lab_table.json');
 let data = {};
 let highlight_col = "";
 let data_keys = [];
+
 let decimal_re = /\d*\.?\d*/
 
+//regular expression that takes 3 words before a span + the span contents
+//let paragraph_re = /(?:\S+\s)?\S*text\S*(?:\s\S+)?/;
+//let paragraph_re = /(?:\S+\s)?\S*(?:\S+\s)?\S*urine/;
+//let paragraph_re = /(?:\S+\s)?\s*(?:\S+\s)?\s*(?:\S+\s)?\s*(<span\sclass="nowrap">.+?<\/span>)/;
+let paragraph_re = /(?:\S+\s){1,3}is\s(<span\sclass="nowrap">.+?<\/span>)/gi;
+
+//parser takes as parameter a data table, potential keys and an input of [amount][unit]
 function RU_to_SI_Parser(data_table, keys, input){
 	let key = "";
 	let output = "";
@@ -75,15 +83,27 @@ fetch(url)
 //once our button is clicked, estimate table units
 chrome.runtime.onMessage.addListener( (req, sender, opts, res) => {
 	highlight_col = req;
-	EstimateUnits();
 
+	//do a check for our class first and if it's not there, then estimate units
+	//otherwise just change colour on those classes
+	let estimations = document.getElementsByClassName('unit-est');
+
+	if(estimations.length === 0){
+		EstimateTableUnits();
+		EstimateParagraphUnits();
+	}
+	else{
+		for(let i = 0, span; span = estimations[i]; i++){
+			span.style['background-color'] = highlight_col;
+		}
+	}
 
 	//https://stackoverflow.com/questions/55224629/what-caused-the-unchecked-runtime-lasterror-the-message-port-closed-before-a-r/62607033
 	return true;
 });
 
 //get all the data in the table
-function EstimateUnits(){
+function EstimateTableUnits(){
 	const tables = document.querySelectorAll('table');
 
 	//for each table...
@@ -128,9 +148,69 @@ function EstimateUnits(){
 
 				//console.log(output);
 
-				row.cells[1].innerHTML = "<span style= \"background-color:" + highlight_col + ";\">"+ output + "</span>" + " ( " + row.cells[1].innerHTML + " )"
+				row.cells[1].innerHTML = row.cells[1].innerHTML + "<span class=\"unit-est\" style= \"background-color:" + highlight_col + ";\"> ( ~"+ output + " )" + "</span>"
 			}
 
 		}
+	}
+}
+
+//https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace#specifying_a_function_as_a_parameter
+function paragraphReplacer(match, p1, p2, p3, offset, string){
+	console.log("match: " + match);
+
+	/*let process = match.replace("<span class=\"nowrap\">", '');
+	process = process.replace('</span>', '');*/
+
+	//get rid of all leftover inner html tags
+	let process = match.replace(/<[^>]*>/ig, '');
+	
+	//theoretically everything in 0 refers to the serum and everything in 1 is the amount + unit which is usable by the parser
+	process = process.split('is');
+	let input = process[1];
+
+	let keys = [];
+	let test_values = process[0].split(' ');
+
+	//determine potential keys
+	data_keys.forEach( (key) =>{
+		test_values.forEach( (test_value) =>{
+			if(key.includes(test_value)){
+				keys.push(test_value);
+			}
+		});
+	});
+
+	//reduce any duplicates
+	keys = new Set(keys);
+	keys = Array.from(keys);
+
+	let output = RU_to_SI_Parser(data["data"], keys, input);
+
+	if(output === ""){
+		return match;
+	}
+	else{
+
+		output = "<span class=\"unit-est\" style= \"background-color:" + highlight_col + ";\"> ( ~"+ output + " )" + "</span>";
+		return match + output;
+	}
+}
+
+function EstimateParagraphUnits(){
+	//we know that all potentially useful units  are in a span chave the class "nowrap" 
+	var tmp = document.getElementsByClassName('nowrap');
+	tmp = Array.from(tmp);
+
+	let paragraphs = new Set(tmp.map( span => span.parentElement ));
+	paragraphs = Array.from(paragraphs);
+
+	//we need to search each paragraph for instances of span with classes of 
+	for(let index=0, paragraph; paragraph = paragraphs[index]; index++){
+		let searchspace = paragraph.innerHTML;
+		//console.log(searchspace);
+		//searchspace = searchspace.split(' ');
+		let result = searchspace.replace(paragraph_re, paragraphReplacer); 
+		paragraph.innerHTML = result;
 	}
 }
