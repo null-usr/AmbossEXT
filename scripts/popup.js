@@ -2,11 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	chrome.storage.local.get(['highlight_colour'], (result) => {
 		let default_colour = "#c4a9da";
+
+		//comes back undefined if empty
 		let colour =  result.highlight_colour;
 
 		console.log('Value is currently ' + colour);
 
-		if(colour !== null && colour !== ""){
+		if(colour){
 			document.getElementById("html5colorpicker").value = colour;
 		}
 		else{
