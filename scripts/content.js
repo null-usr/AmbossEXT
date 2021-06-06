@@ -10,7 +10,7 @@ let decimal_re = /\d*\.?\d*/
 //let paragraph_re = /(?:\S+\s)?\S*text\S*(?:\s\S+)?/;
 //let paragraph_re = /(?:\S+\s)?\S*(?:\S+\s)?\S*urine/;
 //let paragraph_re = /(?:\S+\s)?\s*(?:\S+\s)?\s*(?:\S+\s)?\s*(<span\sclass="nowrap">.+?<\/span>)/;
-let paragraph_re = /(?:\S+\s){1,3}(is|of|are)\s(<span\sclass="nowrap">.+?<\/span>)/gi;
+let paragraph_re = /(?:\S+\s+){1,4}(is|of|are)\s*?(xSTARTx|xENDx)?\s*?(<span\sclass="nowrap">.+?<\/span>)/gi;
 
 //parser takes as parameter a data table, a sorted list of potential keys and an input of [amount][unit]
 function RU_to_SI_Parser(data_table, suggestions, input){
@@ -76,7 +76,8 @@ function RU_to_SI_Parser(data_table, suggestions, input){
 function findPotentialKeys(input, searchspace){
 	let suggestions = []
 	var priorities = new Object();
-	let test_values = input.split(' ');
+	let test_values = input.split(/\s+/);
+	console.log(test_values);
 
 	//determine potential keys by comparing our test values against the names in our data table
 	for( let j = 0, test_value; test_value = test_values[j]; j++){
@@ -214,14 +215,21 @@ function paragraphReplacer(match, p1, p2, p3, offset, string){
 
 	//get rid of all leftover inner html tags
 	let process = match.replace(/<[^>]*>/ig, '');
+	process = process.replace(/(xSTARTx|xENDx)/g, "");
+
+	console.log("Stripped: " + process);
 	
 	//theoretically everything in 0 refers to the serum and everything in 1 is the amount + unit which is usable by the parser
-	process = process.split(/\s(is|of|are)\s/);
-	let input = process[1];
+	process = process.split(/\s+(is|of|are)\s+/);
+	console.log(process);
+	let input = process[2];
 
 	let keys = findPotentialKeys(process[0], data_keys);
+	console.log(keys);
 
+	console.log("input: " + process);
 	let output = RU_to_SI_Parser(data["data"], keys, input);
+	console.log("Output: " + output);
 
 	if(output === ""){
 		return match;
@@ -234,8 +242,29 @@ function paragraphReplacer(match, p1, p2, p3, offset, string){
 }
 
 function EstimateParagraphUnits(){
+
+	//strip all of those annoying highlight tags
+	var pgs = document.getElementsByTagName("p");
+	for(let index=0, paragraph; paragraph = pgs[index]; index++){
+		let placeholder = paragraph.innerHTML;
+
+		placeholder = placeholder.replace(/<span class="Highlight">.+?<\/span>/ig, (match) => {
+
+			let output = match.replace(/<span class="Highlight">/, " xSTARTx ");
+			output = output.replace(/<\/span>/, " xENDx ");
+			return output;
+		});
+		paragraph.innerHTML = placeholder;
+	}
+
 	//we know that all potentially useful units  are in a span chave the class "nowrap" 
 	var tmp = document.getElementsByClassName('nowrap');
+
+	//we need to process inside of the nowrap first, strip all other spans
+	for(let j=0; j<tmp.length; j++){
+		tmp[j].innerHTML = tmp[j].innerText;
+	}
+
 	tmp = Array.from(tmp);
 
 	let paragraphs = new Set(tmp.map( span => span.parentElement ));
@@ -244,9 +273,30 @@ function EstimateParagraphUnits(){
 	//we need to search each paragraph for instances of span with classes of 
 	for(let index=0, paragraph; paragraph = paragraphs[index]; index++){
 		let searchspace = paragraph.innerHTML;
+
+		//delete highlight tags
+
 		//console.log(searchspace);
 		//searchspace = searchspace.split(' ');
 		let result = searchspace.replace(paragraph_re, paragraphReplacer); 
 		paragraph.innerHTML = result;
+	}
+
+	//re-add highlight tags
+	pgs = document.getElementsByTagName("p");
+	for(let index=0, paragraph; paragraph = pgs[index]; index++){
+		let placeholder = paragraph.innerHTML;
+
+		placeholder = placeholder.replace(/xSTARTx/g, (match) => {
+			console.log(match);
+			return "<span class=\"Highlight\">";
+		});
+
+		placeholder = placeholder.replace(/xENDx/g, (match) => {
+			console.log(match);
+			return "</span>";
+		});
+		
+		paragraph.innerHTML = placeholder;
 	}
 }
