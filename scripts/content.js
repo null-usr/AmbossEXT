@@ -32,6 +32,8 @@ function RU_to_SI_Parser(data_table, suggestions, input){
 
 	//remove the unit from the data and parse out the numbers
 	let p1 = input.replace(data_table[suggestion][0], '');
+	//remove commas
+	p1 = p1.replace(",", "");
 
 	//dealing with a data range
 	if(p1.includes('-')){
@@ -80,6 +82,7 @@ function findPotentialKeys(input, searchspace){
 	console.log(test_values);
 
 	//determine potential keys by comparing our test values against the names in our data table
+	//also need a more intelligent way of scoring tbh
 	for( let j = 0, test_value; test_value = test_values[j]; j++){
 		for( let i = 0, key; key = searchspace[i]; i++) {
 			
